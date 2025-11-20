@@ -52,33 +52,45 @@ class WorkflowLogger:
         )
     
     def log_error(self, workflow_id: str, task_id: str, error: str, context: Dict[str, Any] = None):
-        log_data = {
-            "workflow_id": workflow_id,
-            "task_id": task_id,
-            "error": error,
-            "timestamp": datetime.now().isoformat()
-        }
-        if context:
-            log_data.update(context)
-        
-        self.logger.error("task_error", **log_data)
+        try:
+            log_data = {
+                "workflow_id": workflow_id,
+                "task_id": task_id,
+                "error": error,
+                "timestamp": datetime.now().isoformat()
+            }
+            if context:
+                log_data.update(context)
+            
+            self.logger.error("task_error", **log_data)
+        except Exception as e:
+            # If logging fails, just print to console to avoid infinite loop
+            print(f"ERROR LOGGING FAILED: {str(e)}")
     
     def log_workflow_status(self, workflow_id: str, status: str, context: Dict[str, Any] = None):
-        log_data = {
-            "workflow_id": workflow_id,
-            "status": status,
-            "timestamp": datetime.now().isoformat()
-        }
-        if context:
-            log_data.update(context)
-        
-        self.logger.info("workflow_status", **log_data)
+        try:
+            log_data = {
+                "workflow_id": workflow_id,
+                "status": status,
+                "timestamp": datetime.now().isoformat()
+            }
+            if context:
+                log_data.update(context)
+            
+            self.logger.info("workflow_status", **log_data)
+        except Exception as e:
+            # If logging fails, just print to console to avoid infinite loop
+            print(f"WORKFLOW STATUS LOG FAILED: {str(e)}")
     
     def log_governance_event(self, workflow_id: str, event_type: str, details: Dict[str, Any]):
-        self.logger.info(
-            "governance_event",
-            workflow_id=workflow_id,
-            event_type=event_type,
-            details=details,
-            timestamp=datetime.now().isoformat()
-        )
+        try:
+            self.logger.info(
+                "governance_event",
+                workflow_id=workflow_id,
+                event_type=event_type,
+                details=details,
+                timestamp=datetime.now().isoformat()
+            )
+        except Exception as e:
+            # If logging fails, just print to console to avoid infinite loop
+            print(f"GOVERNANCE EVENT LOG FAILED: {str(e)}")

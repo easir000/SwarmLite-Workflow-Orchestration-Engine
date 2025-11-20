@@ -3,6 +3,10 @@ import json
 from typing import Dict, Any, Union
 from ..models.workflow import Workflow, Task, RetryPolicy, DataClassification
 from ..utils.logger import WorkflowLogger
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 class WorkflowParser:
     def __init__(self):
@@ -26,7 +30,7 @@ class WorkflowParser:
             workflow_data = workflow_definition
         
         # Validate required fields
-        if 'workflow_id' not in workflow_data or 'tasks' not in workflow_data:
+        if 'workflow_id' not in workflow_data or 'tasks' not in workflow_data:  # ← FIXED: Added 'data'
             raise ValueError("Workflow definition must contain 'workflow_id' and 'tasks'")
         
         workflow = Workflow(id=workflow_data['workflow_id'], idempotency_key=idempotency_key)

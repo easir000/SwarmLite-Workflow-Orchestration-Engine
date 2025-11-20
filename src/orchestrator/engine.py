@@ -5,6 +5,10 @@ from datetime import datetime
 from ..models.workflow import Workflow, Task, TaskStatus, WorkflowStatus
 from ..utils.logger import WorkflowLogger
 from ..utils.retry_handler import RetryHandler
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 class WorkflowEngine:
     def __init__(self, state_manager, retry_handler: RetryHandler):

@@ -1,7 +1,6 @@
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from datetime import datetime  # ← ADD THIS LINE
+from sqlalchemy.orm import sessionmaker, declarative_base  # ← NEW: Updated import
+from datetime import datetime
 from typing import List, Optional
 from ..models.workflow import WorkflowState, Task, Workflow, WorkflowStatus
 from ..utils.logger import WorkflowLogger
@@ -9,6 +8,10 @@ import json
 import hmac
 import hashlib
 import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 Base = declarative_base()
 
@@ -25,8 +28,10 @@ class WorkflowStateModel(Base):
     signed_at = Column(DateTime, nullable=True)   # NEW
 
 class StateManager:
-    def __init__(self, db_url: str = "sqlite:///swarmlite.db"):
-        self.engine = create_engine(db_url)
+    def __init__(self, db_url: str = None):
+        # Use environment variable for database URL, fallback to default
+        self.db_url = db_url or os.getenv("DATABASE_URL", "sqlite:///swarmlite.db")
+        self.engine = create_engine(self.db_url)
         Base.metadata.create_all(self.engine)
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
@@ -43,8 +48,8 @@ class StateManager:
                 details=json.dumps(workflow_state.details)
             )
             
-            # Generate signature if audit secret key is available
-            secret_key = os.getenv("AUDIT_SECRET_KEY", "fallback-key-should-be-32-char-min")
+            # Use environment variable for audit secret key
+            secret_key = os.getenv("AUDIT_SECRET_KEY")
             if secret_key:
                 payload = f"{db_state.workflow_id}|{db_state.task_id}|{db_state.status}|{db_state.timestamp}|{db_state.details}"
                 db_state.signature = hmac.new(

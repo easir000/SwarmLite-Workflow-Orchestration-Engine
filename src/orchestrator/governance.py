@@ -1,12 +1,17 @@
 import yaml
 import os
-from datetime import datetime  # ← ADD THIS LINE
+from datetime import datetime
 from typing import Dict, Any
 from ..models.workflow import Task, TaskType
 from ..utils.logger import WorkflowLogger
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 class GovernanceEngine:
-    def __init__(self, config_path: str = "config/governance.yaml"):
+    def __init__(self, config_path: str = None):
+        config_path = config_path or os.getenv("GOVERNANCE_CONFIG_PATH", "config/governance.yaml")
         self.config = self._load_config(config_path)
         self.logger = WorkflowLogger()
 

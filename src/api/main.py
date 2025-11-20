@@ -2,19 +2,27 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, Header
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 import asyncio
-import uuid
 import os
+from dotenv import load_dotenv
+from src.config.config import Config
 from ..orchestrator.parser import WorkflowParser
 from ..orchestrator.engine import WorkflowEngine
 from ..orchestrator.state_manager import StateManager
 from ..utils.retry_handler import RetryHandler
 from ..models.workflow import Workflow, WorkflowStatus
-from ..orchestrator.governance import GovernanceEngine  # NEW
+from ..orchestrator.governance import GovernanceEngine
 
-app = FastAPI(title="SwarmLite API", version="1.0.0")
+# Load environment variables
+load_dotenv()
+
+app = FastAPI(
+    title="SwarmLite API", 
+    version="1.0.0",
+    debug=Config.DEBUG
+)
 
 # Initialize components
-state_manager = StateManager()
+state_manager = StateManager(db_url=Config.DATABASE_URL)
 retry_handler = RetryHandler()
 workflow_engine = WorkflowEngine(state_manager, retry_handler)
 workflow_parser = WorkflowParser()
@@ -23,8 +31,8 @@ workflow_parser = WorkflowParser()
 active_workflows: Dict[str, Workflow] = {}
 
 class WorkflowDefinition(BaseModel):
-    definition: str  # YAML or JSON string
-    idempotency_key: Optional[str] = None  # NEW
+    definition: str
+    idempotency_key: Optional[str] = None
 
 class WorkflowResponse(BaseModel):
     workflow_id: str
@@ -34,15 +42,15 @@ class WorkflowResponse(BaseModel):
 @app.post("/workflows/start", response_model=WorkflowResponse)
 async def start_workflow(
     definition: WorkflowDefinition,
-    x_request_source: str = Header(None),  # NEW: For governance
-    x_client_id: str = Header(None)        # NEW: For governance
+    x_request_source: str = Header(None),
+    x_client_id: str = Header(None)
 ):
+    # Validate required headers per governance policy
+    required_headers = ["X-Request-Source", "X-Client-ID"]
+    if not x_request_source or not x_client_id:
+        raise HTTPException(status_code=400, detail=f"Missing required headers: {required_headers}")
+    
     try:
-        # Validate required headers per governance policy
-        required_headers = ["X-Request-Source", "X-Client-ID"]
-        if x_request_source is None or x_client_id is None:
-            raise HTTPException(status_code=400, detail=f"Missing required headers: {required_headers}")
-        
         # Check if workflow already exists for idempotency key
         if definition.idempotency_key:
             existing_workflow_id = state_manager.get_workflow_by_idempotency(definition.idempotency_key)
@@ -112,7 +120,7 @@ async def health_check():
 
 @app.get("/health/compliance")
 async def compliance_check():
-    required_envs = ["DB_ENCRYPTION_KEY", "AUDIT_SECRET_KEY", "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"]
+    required_envs = ["DB_ENCRYPTION_KEY", "AUDIT_SECRET_KEY", "OPENAI_API_KEY"]
     missing = [k for k in required_envs if not os.getenv(k)]
     
     return {
@@ -120,7 +128,7 @@ async def compliance_check():
         "compliance": {
             "data_encryption": bool(os.getenv("DB_ENCRYPTION_KEY")),
             "audit_trail": bool(os.getenv("AUDIT_SECRET_KEY")),
-            "llm_api_key": bool(os.getenv("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")),
+            "llm_api_key": bool(os.getenv("OPENAI_API_KEY")),
             "hipaa_compliant": len(missing) == 0,
             "missing_keys": missing
         }

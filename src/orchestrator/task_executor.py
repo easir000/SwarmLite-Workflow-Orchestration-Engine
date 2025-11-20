@@ -1,6 +1,12 @@
 import asyncio
 from datetime import datetime
 from typing import Dict, Any, Callable, Optional
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Import after other imports to avoid circular dependencies
 from ..models.workflow import Task, TaskStatus, DataClassification
 from ..utils.logger import WorkflowLogger
 from ..utils.retry_handler import RetryHandler
@@ -126,16 +132,82 @@ class TaskExecutor:
         return {"status": "database_executed", "config_keys": list(config.keys())}
     
     async def _execute_llm_task(self, config: Dict[str, Any]) -> Any:
-        await asyncio.sleep(0.01)
-        return {"status": "llm_executed", "model": config.get('model', 'default')}
+        """
+        Execute LLM task with safety checks
+        """
+        import os
+        from dotenv import load_dotenv
+        load_dotenv()  # Load env vars
+        
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            # If OpenAI is not available, simulate
+            await asyncio.sleep(0.2)
+            return {"response": "Simulated LLM response", "confidence": 0.85}
+        
+        # Use environment variable for API key, fallback to config
+        api_key = config.get("api_key", os.getenv("OPENAI_API_KEY"))
+        if not api_key:
+            raise ValueError("No API key provided for LLM task. Set OPENAI_API_KEY in environment or provide in config.")
+        
+        client = AsyncOpenAI(api_key=api_key)
+        
+        prompt = config["prompt"]
+        model = config.get("model", "gpt-4-turbo")
+        
+        # Guardrail: Validate prompt length, disallow system prompt injection
+        if len(prompt) > 2000:
+            raise ValueError("Prompt exceeds 2000 characters for safety")
+        
+        # Check for banned phrases
+        banned_prompts = ["ignore previous instructions", "pretend you're not an AI", "reveal system prompt"]
+        for banned in banned_prompts:
+            if banned.lower() in prompt.lower():
+                raise ValueError(f"Prompt contains banned phrase: '{banned}'")
+        
+        response = await client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=500
+        )
+        
+        result = response.choices[0].message.content
+        
+        # Simulate confidence scoring (in real system, use embeddings)
+        confidence = 0.85  # placeholder
+        
+        # If confidence is low, trigger human review
+        if confidence < 0.75:
+            result = "[REVIEW REQUIRED: LOW CONFIDENCE]"
+        
+        return result
     
     async def _execute_rag_task(self, config: Dict[str, Any]) -> Any:
-        await asyncio.sleep(0.01)
-        return {"status": "rag_executed", "query": config.get('query', 'default')}
+        """
+        Execute RAG task with retrieval and generation
+        """
+        # Simulate RAG process
+        query = config.get("query", "")
+        context = config.get("context", "Sample context for RAG")
+        
+        # In real system: retrieve from vector store, generate response
+        await asyncio.sleep(0.2)  # Simulate retrieval and generation
+        return {
+            "query": query,
+            "retrieved_context": context,
+            "response": f"Answer to: {query}",
+            "confidence": 0.88
+        }
     
     async def _execute_custom_task(self, config: Dict[str, Any]) -> Any:
-        await asyncio.sleep(0.01)
-        return {"status": "custom_executed", "custom_keys": list(config.keys())}
+        """
+        Execute custom task
+        """
+        # Placeholder for custom task execution
+        await asyncio.sleep(0.1)
+        return {"custom_task_completed": True}
     
     def register_task_handler(self, task_type: str, handler: Callable):
         """

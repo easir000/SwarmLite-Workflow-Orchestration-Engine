@@ -2,6 +2,10 @@ import asyncio
 import random
 from typing import Callable, Any, Optional
 from .logger import WorkflowLogger
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 class RetryHandler:
     def __init__(self, max_attempts: int = 3, delay_seconds: int = 2, exponential_backoff: bool = True):
