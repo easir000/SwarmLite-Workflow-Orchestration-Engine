@@ -14,6 +14,7 @@ All policies are codified in `config/governance.yaml` and enforced at runtime. K
 - ✅ Automated human review triggers for low-confidence outputs
 - ✅ Immutable audit trails with HMAC signatures
 - ✅ API request header validation for partner system onboarding
+- ✅ Environment-based configuration management with `.env` file support
 
 This is not theoretical compliance — it is **operationalized governance**.
 
@@ -31,6 +32,7 @@ SwarmLite follows a modular, event-driven architecture with the following key co
 - **Workflow Engine (`src/orchestrator/engine.py`)**: Orchestrates task execution based on dependency graphs with topological sorting
 - **Governance Engine (`src/orchestrator/governance.py`)**: Enforces AI governance policies at runtime based on `config/governance.yaml`
 - **API Layer (`src/api/main.py`)**: REST API for workflow management using FastAPI with required headers validation
+- **Configuration Manager (`src/config/config.py`)**: Centralized environment variable management with validation
 
 ### Data Models
 
@@ -55,8 +57,8 @@ SwarmLite follows a modular, event-driven architecture with the following key co
 ### Security & Compliance
 - For demonstration purposes, the system assumes trusted workflow definitions
 - Data classification (PHI/PII/Public) is specified in workflow definitions
-- Encryption keys are stored in environment variables
-- API keys and secrets are managed externally
+- Encryption keys are stored in environment variables via `.env` file
+- API keys and secrets are managed externally through environment variables
 
 ### Scalability & Performance
 - Single-node execution suitable for small to medium workloads (up to 20 concurrent workflows)
@@ -66,7 +68,7 @@ SwarmLite follows a modular, event-driven architecture with the following key co
 
 ### Dependencies & External Services
 - HTTP tasks assume reliable external endpoints (simulated in this prototype)
-- LLM tasks require OpenAI API key or will simulate responses
+- LLM tasks require OpenAI API key via environment variables or will simulate responses
 - Database operations are simulated for demonstration
 - Network connectivity is available for HTTP tasks
 
@@ -97,6 +99,16 @@ source myenv/bin/activate  # On Windows: myenv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+### Environment Configuration
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env and add your actual API keys and configuration
+notepad .env  # On Windows
+# Or: nano .env  # On macOS/Linux
+```
+
 ### Running the Application
 
 #### 1. Run Directly (Simple Workflow)
@@ -108,6 +120,7 @@ This executes the `examples/reliable_workflow.yaml` which includes:
 - 4 tasks with dependencies: `initialize_data` → `process_data` → `validate_output` → `finalize_results`
 - Python task types with function simulation
 - Governance policy enforcement by Easir Maruf
+- Environment-based configuration validation
 
 #### 2. Run with API Server
 ```bash
@@ -123,6 +136,7 @@ curl http://localhost:8000/health/compliance
 #### 3. Run Tests
 ```bash
 python -m pytest tests/ -v
+python -m pytest tests/ --disable-warnings  # To suppress SQLAlchemy warnings
 ```
 
 ### Example Workflow Definition
@@ -270,3 +284,52 @@ All workflow and task states are persisted:
 5. **Status**: Workflow marked as `FAILED`, Task A = `SUCCESS`, Task B = `ROLLBACK`, Task C = `PENDING`
 
 This fault-tolerant design ensures system reliability while maintaining data integrity and compliance requirements.
+
+## Environment Configuration
+
+### Required Environment Variables
+
+The system uses a `.env` file for secure configuration management:
+
+```env
+# Database Configuration (32+ character keys)
+DB_ENCRYPTION_KEY=your-32-byte-encryption-key-here-replace-with-actual-key
+AUDIT_SECRET_KEY=your-32-byte-audit-signing-key-here-replace-with-actual-key
+
+# API Keys (only set what you need)
+OPENAI_API_KEY=your-openai-api-key-here
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
+GOOGLE_API_KEY=your-google-api-key-here
+
+# Database URL (for production)
+DATABASE_URL=sqlite:///swarmlite.db
+# For PostgreSQL: postgresql://user:password@localhost/dbname
+
+# Server Configuration
+SERVER_HOST=0.0.0.0
+SERVER_PORT=8000
+DEBUG=False
+
+# Governance Configuration
+GOVERNANCE_CONFIG_PATH=config/governance.yaml
+
+# Logging Configuration
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+```
+
+### Configuration Validation
+
+The system validates required environment variables on startup:
+- `AUDIT_SECRET_KEY` (minimum 32 characters)
+- `DB_ENCRYPTION_KEY` (minimum 32 characters, optional)
+- All API keys are validated when used
+
+### Security Best Practices
+
+- **Never commit `.env` to version control**
+- Use the `.env.example` file as template
+- Store sensitive keys in environment variables
+- Validate configuration on application startup
+
+This environment-based configuration ensures secure, production-ready deployment with proper secret management.
