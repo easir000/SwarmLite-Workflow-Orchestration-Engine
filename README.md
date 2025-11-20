@@ -107,6 +107,10 @@ cp .env.example .env
 # Edit .env and add your actual API keys and configuration
 notepad .env  # On Windows
 # Or: nano .env  # On macOS/Linux
+
+# Generate secure keys (minimum 32 characters each)
+# For AUDIT_SECRET_KEY: python -c "import secrets; print(secrets.token_urlsafe(32))"
+# For DB_ENCRYPTION_KEY: python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
 ### Running the Application
@@ -241,8 +245,8 @@ When a task fails, the system attempts to execute compensation handlers:
 **Example Compensation Handler**:
 ```yaml
 compensation_handlers:
-  fetch_data: "rollback_fetch_data"
-  clean_data: "rollback_clean_data"
+  fetch_ "rollback_fetch_data"
+  clean_ "rollback_clean_data"
 ```
 
 ### Idempotency Protection
@@ -331,5 +335,43 @@ The system validates required environment variables on startup:
 - Use the `.env.example` file as template
 - Store sensitive keys in environment variables
 - Validate configuration on application startup
+- Generate secure random keys using: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
 
 This environment-based configuration ensures secure, production-ready deployment with proper secret management.
+
+## Testing Configuration
+
+### Custom Markers Support
+
+The system includes pytest configuration with custom markers:
+
+```ini
+[pytest]
+markers =
+    unit: marks tests as unit tests
+    integration: marks tests as integration tests
+    slow: marks tests as slow (deselect with '-m "not slow"')
+    serial: marks tests that should run serially
+
+filterwarnings =
+    error
+    ignore::sqlalchemy.exc.MovedIn20Warning
+    ignore::UserWarning
+    ignore::DeprecationWarning
+
+addopts = 
+    -v
+    --strict-markers
+    --tb=short
+```
+
+### Testing Commands
+
+Run tests with various options:
+- `python -m pytest tests/ -v` - Verbose output
+- `python -m pytest tests/ --disable-warnings` - Suppress warnings
+- `python -m pytest tests/ -m "unit"` - Run only unit tests
+- `python -m pytest tests/ -k "test_parse_workflow"` - Run specific test by name
+- `python -m pytest tests/ --cov=src` - Run with coverage report
+
+The system properly handles SQLAlchemy deprecation warnings and supports strict marker validation for enterprise-grade testing.
